@@ -1,0 +1,26 @@
+name: CI                         # the label shown in GitHub's Actions tab
+
+on:                              # when should this run?
+  push:
+    branches: [main]             # every time someone pushes directly to main
+  pull_request:                  # and every time a pull request is opened or updated
+
+jobs:                            # a workflow is made of jobs; we only need one
+  test:                          # the job's name (any label works)
+    runs-on: ubuntu-latest       # GitHub lends you a fresh Linux machine for the run, then throws it away
+    defaults:
+      run:
+        working-directory: backend   # every "run:" step below executes inside the backend folder
+
+    steps:                       # the job's to-do list, executed top to bottom
+      - uses: actions/checkout@v4    # download your repo's code onto the blank machine (it starts empty)
+
+      - uses: actions/setup-python@v5    # install Python on the machine
+        with:
+          python-version: "3.12"         # use the same version you run locally (check with: python --version)
+          cache: pip                     # save downloaded packages between runs, so later runs are faster
+          cache-dependency-path: backend/requirements.txt   # the cache refreshes whenever this file changes
+
+      - run: pip install -r requirements.txt   # install everything listed in the file (-r means "read from this file")
+
+      - run: pytest                  # run your tests; if any fail, the whole job goes red
