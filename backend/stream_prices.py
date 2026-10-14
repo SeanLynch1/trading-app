@@ -3,6 +3,7 @@ import json                                       # turn text messages into Pyth
 import asyncio                                    # run the stream and the timer side by side
 import websockets                                 # raw WebSocket client (installed with alpaca-py)
 from dotenv import load_dotenv                    # loads your .env file
+from redis_client import r                        # shared async Redis connection (redis_client.py)
 
 load_dotenv()                                     # read ALPACA_API_KEY and ALPACA_SECRET_KEY from .env
 URL = "wss://stream.data.alpaca.markets/v1beta3/crypto/us-1"   # Kraken US feed
@@ -20,6 +21,7 @@ stats = new_stats()                               # the scoreboard currently bei
 async def listen():
     global bid, ask, stats                        # lets us change the variables defined above
     try:
+        await r.ping()                                       # fail early if Redis isn't running
         async with websockets.connect(URL) as ws:            # open the connection
             await ws.recv()                                  # skip the "connected" message
             await ws.send(json.dumps({                       # log in with your keys
@@ -38,6 +40,9 @@ async def listen():
                 for item in json.loads(message):             # one message can hold several items
                     if item["T"] == "q":                     # "q" = quote update
                         bid, ask = item["bp"], item["ap"]    # remember the latest bid and ask (not printed)
+                        await r.hset(f"quote:{SYMBOL}", mapping={   # save latest bid/ask to Redis
+                            "bid": bid, "ask": ask, "time": item["t"],
+                        })
                     elif item["T"] == "t":                   # "t" = a trade
                         price, size = item["p"], item["s"]   # price per bitcoin, bitcoin traded
                         is_buy = item.get("tks") == "B"      # taker side: B = the buyer started the trade
@@ -52,6 +57,15 @@ async def listen():
                         stats["high"] = price if stats["high"] is None else max(stats["high"], price)
                         stats["low"] = price if stats["low"] is None else min(stats["low"], price)
                         stats["close"] = price               # latest trade = close price
+
+                        trade = {                            # the trade as a small dictionary
+                            "time": item["t"],
+                            "side": "BUY" if is_buy else "SELL",
+                            "size": size,
+                            "price": price,
+                        }
+                        await r.hset(f"last_trade:{SYMBOL}", mapping=trade)      # latest trade, for anyone who asks
+                        await r.publish(f"trades:{SYMBOL}", json.dumps(trade))   # live broadcast, for anyone listening
 
                         spread = f"${ask - bid:.2f}" if bid and ask else "n/a"
                                                              # gap between best ask and best bid ("n/a" until the first quote)
