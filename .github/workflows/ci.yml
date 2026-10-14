@@ -12,6 +12,16 @@ jobs:                            # a workflow is made of jobs; we only need one
       run:
         working-directory: backend   # every "run:" step below executes inside the backend folder
 
+    services:
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
     steps:                       # the job's to-do list, executed top to bottom
       - uses: actions/checkout@v4    # download your repo's code onto the blank machine (it starts empty)
 
