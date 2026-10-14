@@ -40,9 +40,9 @@ async def listen():
                 for item in json.loads(message):             # one message can hold several items
                     if item["T"] == "q":                     # "q" = quote update
                         bid, ask = item["bp"], item["ap"]    # remember the latest bid and ask (not printed)
-                        await r.hset(f"quote:{SYMBOL}", mapping={   # save latest bid/ask to Redis
-                            "bid": bid, "ask": ask, "time": item["t"],
-                        })
+                        quote = {"bid": bid, "ask": ask, "time": item["t"]}
+                        await r.hset(f"quote:{SYMBOL}", mapping=quote)            # latest bid/ask, for anyone who asks
+                        await r.publish(f"quotes:{SYMBOL}", json.dumps(quote))   # live broadcast, for anyone listening
                     elif item["T"] == "t":                   # "t" = a trade
                         price, size = item["p"], item["s"]   # price per bitcoin, bitcoin traded
                         is_buy = item.get("tks") == "B"      # taker side: B = the buyer started the trade
