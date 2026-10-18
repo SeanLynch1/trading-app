@@ -1,0 +1,26 @@
+# Starts the databases the app needs: `docker compose up -d` (stop them with `docker compose down`).
+# Your Python code and the frontend still run in your terminals for now.
+services:
+  postgres:                                # permanent records: orders, fills, deposits, daily balances
+    image: postgres:17                     # pinned: pick the same major version on AWS RDS later
+    environment:
+      POSTGRES_USER: trader                # local-only login; on AWS this comes from Secrets Manager
+      POSTGRES_PASSWORD: trader
+      POSTGRES_DB: trading                 # the database created on first start
+    ports:
+      - "5432:5432"                        # reachable from Windows as localhost:5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data    # keeps the data when the container is stopped or recreated
+    healthcheck:                           # "healthy" once Postgres accepts connections
+      test: ["CMD-SHELL", "pg_isready -U trader -d trading"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:                                   # live prices and live order updates
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:                                  # a Docker-managed folder for Postgres's files

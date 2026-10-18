@@ -1,0 +1,191 @@
+/* ---------- Portfolio page ---------- */
+.portfolio { display: grid; gap: 20px; padding-bottom: 96px; }   /* room at the bottom for the Invest button */
+
+.balance-card { display: grid; gap: 6px; }
+.balance { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.balance-pnl { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.balance-split {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--border);
+}
+.balance-split div { display: flex; flex-direction: column; gap: 2px; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.holdings-card { padding-bottom: 8px; }
+.holdings-head, .holding-row {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+  align-items: center; gap: 10px;
+}
+.holdings-head {
+  padding: 0 10px 8px; color: var(--muted);
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.holdings-head span:not(:first-child), .holding-row > span:not(:first-child) { text-align: right; }
+.holding-row {
+  width: 100%; font: inherit; color: var(--text); background: transparent; text-align: left;
+  border: none; border-top: 1px solid var(--border); padding: 12px 10px; cursor: pointer;
+  font-variant-numeric: tabular-nums; font-size: 14px; border-radius: 8px;
+}
+.holding-row:hover { background: var(--track); }
+.holding-row:focus-visible { outline: 2px solid var(--muted); outline-offset: -2px; }
+.holding-row > span:not(:first-child) { display: flex; flex-direction: column; align-items: flex-end; }
+.holding-name { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.holding-name > span { display: flex; flex-direction: column; min-width: 0; }
+.holding-name .small-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.holding-value { font-weight: 600; }
+.asset-dot { width: 30px; height: 30px; border-radius: 50%; background: var(--track); flex: none; }
+.empty-holdings { margin: 0 0 12px; }
+
+.cash-card { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.cash-card > div { display: flex; flex-direction: column; gap: 4px; }
+.cash-value { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* the Invest button floats over the bottom of the screen */
+.invest-dock {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; pointer-events: none;
+  display: flex; justify-content: center; padding: 16px;
+  background: linear-gradient(to top, var(--bg) 40%, transparent);
+}
+.invest-button {
+  pointer-events: auto; width: min(420px, 100%);
+  font: inherit; font-size: 17px; font-weight: 600; color: #fff; background: var(--buy);
+  border: none; border-radius: 999px; padding: 15px 24px; cursor: pointer;
+  box-shadow: 0 8px 24px rgba(22, 163, 74, 0.35);
+}
+.invest-button:hover { filter: brightness(1.05); }
+.invest-button:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+
+.toast {                                          /* top of the screen, clear of dialogs and the Invest button */
+  position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 1300;
+  background: var(--text); color: var(--card); padding: 10px 16px; border-radius: 10px;
+  font-size: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* ---------- dialogs ---------- */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.modal-panel {
+  width: min(440px, 100%); max-height: calc(100vh - 32px); overflow-y: auto;
+  background: var(--card); color: var(--text); border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3); outline: none;
+}
+.modal-panel.wide { width: min(640px, 100%); }
+.modal-header {
+  position: sticky; top: 0; z-index: 1; background: var(--card);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+.modal-header h2 { margin: 0; font-size: 17px; font-weight: 600; text-transform: capitalize; }
+.modal-body { padding: 20px; }
+.icon-button {
+  font: inherit; font-size: 16px; line-height: 1; color: var(--muted); background: transparent;
+  border: none; border-radius: 8px; padding: 8px; cursor: pointer;
+}
+.icon-button:hover { background: var(--track); color: var(--text); }
+@media (max-width: 560px) {                       /* phones: dialogs slide up from the bottom */
+  .modal-backdrop { align-items: flex-end; padding: 0; }
+  .modal-panel, .modal-panel.wide { width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; }
+}
+
+/* ---------- shared controls ---------- */
+.segmented { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 3px; background: var(--track); border-radius: 10px; }
+.seg {
+  font: inherit; font-size: 15px; font-weight: 600; color: var(--muted);
+  background: transparent; border: none; border-radius: 8px; padding: 9px 12px; cursor: pointer;
+}
+.seg.active { background: var(--card); color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.seg.buy.active { color: #fff; background: var(--buy); }
+.seg.sell.active { color: #fff; background: var(--sell); }
+.segmented.small .seg { font-size: 14px; padding: 7px 10px; }
+.segmented.tiny .seg { font-size: 12px; padding: 5px 8px; }
+.seg:focus-visible, .primary-button:focus-visible, .secondary-button:focus-visible, .link-button:focus-visible,
+.order-row:focus-visible, .icon-button:focus-visible { outline: 2px solid var(--muted); outline-offset: 1px; }
+
+.primary-button, .secondary-button {
+  width: 100%; font: inherit; font-size: 16px; font-weight: 600;
+  border-radius: 12px; padding: 13px 18px; cursor: pointer;
+}
+.primary-button { color: #fff; background: var(--text); border: none; }
+.primary-button.buy, .primary-button.sell { color: #fff; }   /* beats App.css's green/red .buy/.sell text colours */
+.primary-button.buy { background: var(--buy); }
+.primary-button.sell { background: var(--sell); }
+.primary-button:disabled, .secondary-button:disabled { opacity: 0.45; cursor: not-allowed; }
+.secondary-button { color: var(--text); background: transparent; border: 1px solid var(--border); }
+.secondary-button.danger { color: var(--sell); border-color: var(--sell); }
+.link-button {
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--text);
+  background: transparent; border: none; padding: 6px 8px; border-radius: 6px; cursor: pointer;
+}
+.link-button:hover { background: var(--track); }
+.link-button.danger { color: var(--sell); }
+.button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ---------- order ticket ---------- */
+.ticket { display: grid; gap: 14px; }
+.ticket-hint { margin: -6px 0 0; }
+.field { display: grid; gap: 6px; }
+.field input {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 20px; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+}
+.field input:focus { outline: 2px solid var(--muted); outline-offset: 0; }
+.amount-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; }
+.ticket-summary { display: grid; gap: 8px; padding: 14px; background: var(--bg); border-radius: 12px; }
+.summary-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.summary-row.muted { color: var(--muted); }
+.summary-row .strong { font-weight: 700; font-size: 16px; }
+.review-lead { margin: 0; font-size: 18px; line-height: 1.4; }
+.ticket.done { justify-items: center; text-align: center; padding: 8px 0; }
+.done-mark {
+  width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 28px; color: #fff; background: var(--buy);
+}
+.done-mark.sell { background: var(--sell); }
+
+/* ---------- asset panel ---------- */
+.asset { display: grid; gap: 18px; }
+.asset-hero { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.asset-hero > div { display: flex; flex-direction: column; gap: 2px; }
+.asset-value { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.position-pill, .status-pill, .side-tag {
+  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  border-radius: 999px; padding: 4px 10px; background: var(--track); color: var(--muted);
+}
+.position-pill.long { background: var(--buy-soft); color: var(--buy); }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+.stat { display: flex; flex-direction: column; gap: 2px; padding: 12px; background: var(--bg); border-radius: 12px; }
+.stat-value { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.section-title { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.order-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.order-list li { display: flex; align-items: center; gap: 6px; }
+.order-row {
+  flex: 1; min-width: 0; display: grid; grid-template-columns: 52px 1fr 1fr auto 12px; align-items: center; gap: 10px;
+  font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--text); text-align: left;
+  background: transparent; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; cursor: pointer;
+}
+.order-list li:has(.link-button) .order-row { grid-template-columns: 52px 1fr 1fr auto; }
+.order-row:hover { background: var(--track); }
+.side-tag { text-align: center; padding: 3px 0; }
+.side-tag.buy { background: var(--buy-soft); color: var(--buy); }
+.side-tag.sell { background: var(--sell-soft); color: var(--sell); }
+.chevron { color: var(--muted); font-size: 18px; }
+
+/* ---------- trade detail ---------- */
+.detail { display: grid; gap: 16px; }
+.detail-hero { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.detail-pnl { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.status-pill.filled { background: var(--buy-soft); color: var(--buy); }
+.status-pill.open { background: var(--track); color: var(--text); }
+.detail-list { margin: 0; display: grid; gap: 0; }
+.detail-item { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.detail-item dt { color: var(--muted); }
+.detail-item dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+
+@media (max-width: 560px) {
+  .balance { font-size: 32px; }
+  .holdings-head, .holding-row { grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(0, 1fr)); gap: 6px; font-size: 13px; }
+  .order-row { grid-template-columns: 46px 1fr 1fr; }
+  .order-row > .small-text, .order-row .chevron { display: none; }
+}

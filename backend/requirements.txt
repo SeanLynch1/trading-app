@@ -29,3 +29,12 @@ websockets==17.2
 pytest-asyncio==1.4.0
 fastapi==0.143.1
 uvicorn==0.54.0
+SQLAlchemy==2.1.5
+asyncpg==0.32.0
+greenlet==3.5.6
+alembic==1.20.0
+Mako==1.4.3
+MarkupSafe==3.0.4
+httpx==0.28.1
+fakeredis==2.40.0
+sortedcontainers==2.4.0

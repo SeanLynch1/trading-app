@@ -1,11 +1,9 @@
-import os                                         # read keys from the environment
 import json                                       # turn text messages into Python data
 import asyncio                                    # run the stream and the timer side by side
 import websockets                                 # raw WebSocket client (installed with alpaca-py)
-from dotenv import load_dotenv                    # loads your .env file
+from config import ALPACA_API_KEY, ALPACA_SECRET_KEY   # keys are loaded once, in config.py
 from redis_client import r                        # shared async Redis connection (redis_client.py)
 
-load_dotenv()                                     # read ALPACA_API_KEY and ALPACA_SECRET_KEY from .env
 URL = "wss://stream.data.alpaca.markets/v1beta3/crypto/us-1"   # Kraken US feed
 SYMBOL = "BTC/USD"                                # change this to try another coin, e.g. "ETH/USD"
 
@@ -21,13 +19,15 @@ stats = new_stats()                               # the scoreboard currently bei
 async def listen():
     global bid, ask, stats                        # lets us change the variables defined above
     try:
+        if not ALPACA_API_KEY or not ALPACA_SECRET_KEY:      # fail early with a clear reason
+            raise RuntimeError("ALPACA_API_KEY / ALPACA_SECRET_KEY missing from .env")
         await r.ping()                                       # fail early if Redis isn't running
         async with websockets.connect(URL) as ws:            # open the connection
             await ws.recv()                                  # skip the "connected" message
             await ws.send(json.dumps({                       # log in with your keys
                 "action": "auth",
-                "key": os.environ["ALPACA_API_KEY"],
-                "secret": os.environ["ALPACA_SECRET_KEY"],
+                "key": ALPACA_API_KEY,
+                "secret": ALPACA_SECRET_KEY,
             }))
             print("auth:", await ws.recv(), flush=True)      # shows "authenticated" or the error reason
             await ws.send(json.dumps({                       # ask for trades AND quotes on the same connection
@@ -40,9 +40,9 @@ async def listen():
                 for item in json.loads(message):             # one message can hold several items
                     if item["T"] == "q":                     # "q" = quote update
                         bid, ask = item["bp"], item["ap"]    # remember the latest bid and ask (not printed)
-                        await r.hset(f"quote:{SYMBOL}", mapping={   # save latest bid/ask to Redis
-                            "bid": bid, "ask": ask, "time": item["t"],
-                        })
+                        quote = {"bid": bid, "ask": ask, "time": item["t"]}
+                        await r.hset(f"quote:{SYMBOL}", mapping=quote)            # latest bid/ask, for anyone who asks
+                        await r.publish(f"quotes:{SYMBOL}", json.dumps(quote))   # live broadcast, for anyone listening
                     elif item["T"] == "t":                   # "t" = a trade
                         price, size = item["p"], item["s"]   # price per bitcoin, bitcoin traded
                         is_buy = item.get("tks") == "B"      # taker side: B = the buyer started the trade
