@@ -21,6 +21,18 @@ jobs:                            # a workflow is made of jobs; we only need one
           --health-interval 5s
           --health-timeout 3s
           --health-retries 5
+      postgres:                    # a throwaway Postgres for the database tests, same version as docker-compose.yml
+        image: postgres:17
+        env:                       # matches the default DATABASE_URL in config.py, so no extra settings are needed
+          POSTGRES_USER: trader
+          POSTGRES_PASSWORD: trader
+          POSTGRES_DB: trading
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U trader -d trading"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
 
     steps:                       # the job's to-do list, executed top to bottom
       - uses: actions/checkout@v4    # download your repo's code onto the blank machine (it starts empty)

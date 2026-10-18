@@ -29,9 +29,25 @@
 
 body { margin: 0; background: var(--bg); color: var(--text); }
 
-.app { max-width: 760px; margin: 0 auto; padding: 32px 16px; display: grid; gap: 20px; }
+.app {
+  width: 100%; max-width: 760px; box-sizing: border-box;   /* a fixed width, not "as wide as the content" */
+  margin: 0 auto; padding: 32px 16px;
+  display: grid; gap: 20px;
+  grid-template-columns: minmax(0, 1fr);   /* the column may shrink below its content, so the chart can shrink back */
+}
 
-.app-header { display: flex; align-items: center; gap: 14px; }
+.app { text-align: left; }   /* the Vite starter centres all text in #root; this app reads left to right */
+.app-header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+
+/* Portfolio / Market tabs, on the right of the header */
+.tabs { margin-left: auto; display: flex; gap: 2px; padding: 3px; background: var(--track); border-radius: 10px; }
+.tab {
+  padding: 6px 14px; border-radius: 8px; font-size: 14px; font-weight: 500;
+  color: var(--muted); text-decoration: none;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--text); background: var(--card); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.tab:focus-visible { outline: 2px solid var(--muted); outline-offset: 1px; }
 .app-header h1 { margin: 0; font-size: 24px; font-weight: 600; }
 .subtitle { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
 
@@ -112,3 +128,109 @@ tbody tr:last-child td { border-bottom: none; }
 
 .buy { color: var(--buy); }
 .sell { color: var(--sell); }
+/* ---------- candlestick chart (TradingView-style) ---------- */
+.chart-card { padding: 0; text-align: left; }   /* no overflow:hidden here, or it would clip the interval menu */
+
+/* top toolbar: symbol | interval ▾ ............ full screen */
+.chart-toolbar {
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px 8px; border-bottom: 1px solid var(--border);
+}
+.chart-symbol { display: inline-flex; align-items: center; gap: 8px; padding: 0 8px; font-weight: 600; font-size: 14px; }
+.toolbar-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.toolbar-spacer { flex: 1; }
+
+.tool-button {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 14px; font-weight: 500; color: var(--text);
+  background: transparent; border: none; border-radius: 6px;
+  height: 32px; padding: 0 10px; cursor: pointer;
+}
+.tool-button:hover, .tool-button.open { background: var(--track); }
+.tool-button:focus-visible, .interval-option:focus-visible, .chart-pill:focus-visible {
+  outline: 2px solid var(--muted); outline-offset: 1px;
+}
+
+/* interval dropdown */
+.interval-menu { position: relative; }
+.interval-button svg { color: var(--muted); }
+.interval-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 20;
+  min-width: 180px; padding: 6px 0; max-height: 70vh; overflow-y: auto;
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.interval-group + .interval-group { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; }
+.interval-group-title {
+  padding: 4px 14px; color: var(--muted);
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.interval-option {
+  display: block; width: 100%; text-align: left;
+  font: inherit; font-size: 14px; color: var(--text);
+  background: transparent; border: none; padding: 7px 14px; cursor: pointer;
+}
+.interval-option:hover { background: var(--track); }
+.interval-option.active { font-weight: 600; background: var(--track); }
+
+/* chart area */
+.chart-body { position: relative; overflow: hidden; border-radius: 0 0 12px 12px; }   /* round the chart's bottom corners */
+.candle-chart { height: 420px; }   /* autoSize fills the container, so the container needs a real height */
+
+/* O/H/L/C legend, top-left over the chart */
+.chart-legend {
+  position: absolute; top: 8px; left: 12px; z-index: 3; pointer-events: none;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+  font-size: 12px; font-variant-numeric: tabular-nums;
+  max-width: calc(100% - 90px);
+}
+.legend-title { color: var(--text); font-weight: 500; }
+.legend-values { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; }
+.legend-values b { color: var(--muted); font-weight: 400; margin-right: 3px; }
+.legend-volume { color: var(--muted); width: 100%; }
+
+/* live dot on the newest price: flashes green for a buy, red for a sell */
+.live-dot {
+  position: absolute; top: 0; left: 0; z-index: 2; display: none; pointer-events: none;
+  width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%;
+  background: var(--muted); transition: background-color 0.15s;
+}
+.live-dot[data-side="BUY"] { background: var(--buy); color: var(--buy); }
+.live-dot[data-side="SELL"] { background: var(--sell); color: var(--sell); }
+.live-dot::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  box-shadow: 0 0 0 0 currentColor; opacity: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .live-dot.pulse::after { animation: trade-pulse 0.7s ease-out; }
+}
+@keyframes trade-pulse {
+  0%   { box-shadow: 0 0 0 0 currentColor; opacity: 0.8; }
+  100% { box-shadow: 0 0 0 10px currentColor; opacity: 0; }
+}
+
+/* "Auto" and "Latest" pills, bottom-right above the axes, like TradingView's */
+.chart-pills {
+  position: absolute; right: 72px; bottom: 36px; z-index: 3;
+  display: flex; gap: 6px;
+}
+.chart-pill {
+  font: inherit; font-size: 12px; font-weight: 500; color: var(--text);
+  background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 10px; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.chart-pill:hover { background: var(--track); }
+
+.chart-overlay {
+  position: absolute; inset: 0; margin: 0; z-index: 4;
+  display: flex; align-items: center; justify-content: center; pointer-events: none;
+}
+
+/* full screen: the card covers the whole window and the chart takes all the space under the toolbar */
+.chart-card.expanded {
+  position: fixed; inset: 0; z-index: 1000;
+  border-radius: 0; border: none;
+  display: flex; flex-direction: column;
+}
+.chart-card.expanded .chart-body { flex: 1; min-height: 0; border-radius: 0; }
+.chart-card.expanded .candle-chart { height: 100%; }

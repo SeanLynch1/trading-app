@@ -1,30 +1,31 @@
+import { BrowserRouter, NavLink, Route, Routes } from "react-router";
 import BitcoinLogo from "./components/BitcoinLogo";
-import QuotePanel from "./components/QuotePanel";
-import PressureBar from "./components/PressureBar";
-import TradesTable from "./components/TradesTable";
-import useQuote from "./hooks/useQuote";
-import useTrades from "./hooks/useTrades";
+import MarketPage from "./pages/MarketPage";
+import PortfolioPage from "./pages/PortfolioPage";
 import "./App.css";
 
-const SYMBOL = "BTC";                             // matches SYMBOL in stream_prices.py
-
+// The app shell: header with the Portfolio / Market tabs, and whichever page the address points to.
 export default function App() {
-  const { quote, error } = useQuote(SYMBOL);                        // live bid/ask
-  const { trades, status, startedAt, now } = useTrades(SYMBOL);     // trades from the last 5 minutes
-
   return (
-    <main className="app">
-      <header className="app-header">
-        <BitcoinLogo size={44} />
-        <div>
-          <h1>Bitcoin</h1>
-          <p className="subtitle">BTC/USD · paper trading · live data via Alpaca</p>
-        </div>
-      </header>
+    <BrowserRouter>
+      <main className="app">
+        <header className="app-header">
+          <BitcoinLogo size={36} />
+          <div>
+            <h1>Trading</h1>
+            <p className="subtitle">paper trading · live prices via Alpaca</p>
+          </div>
+          <nav className="tabs" aria-label="Main">
+            <NavLink to="/" end className={({ isActive }) => `tab ${isActive ? "active" : ""}`}>Portfolio</NavLink>
+            <NavLink to="/market" className={({ isActive }) => `tab ${isActive ? "active" : ""}`}>Market</NavLink>
+          </nav>
+        </header>
 
-      <QuotePanel quote={quote} error={error} />
-      <PressureBar trades={trades} startedAt={startedAt} now={now} />
-      <TradesTable trades={trades} status={status} />
-    </main>
+        <Routes>
+          <Route path="/" element={<PortfolioPage />} />
+          <Route path="/market" element={<MarketPage />} />
+        </Routes>
+      </main>
+    </BrowserRouter>
   );
 }
