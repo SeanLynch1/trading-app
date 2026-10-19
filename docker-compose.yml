@@ -1,14 +1,27 @@
-# Starts the databases the app needs: `docker compose up -d` (stop them with `docker compose down`).
-# Your Python code and the frontend still run in your terminals for now.
+# Runs the whole backend in containers: `docker compose up -d --build` (stop it with `docker compose down`).
+# The frontend still runs with `npm run dev` for now; on the server it will be served by Caddy instead.
+# Before starting, stop any uvicorn / stream_prices.py / match_orders.py you have running in terminals.
+
+x-backend: &backend                        # settings shared by every container built from backend/Dockerfile
+  build: ./backend                         # build the image from backend/Dockerfile...
+  image: trading-backend                   # ...and call it trading-backend
+  pull_policy: build                       # always build it here; never look for it on Docker Hub
+  env_file: backend/.env                   # your Alpaca keys, fee rate, starting cash
+  environment:                             # these win over the same names in .env:
+    REDIS_URL: redis://redis:6379/0        # inside compose, containers find each other by service name
+    DATABASE_URL: postgresql+asyncpg://trader:${POSTGRES_PASSWORD:-trader}@postgres:5432/trading
+                                           # ${POSTGRES_PASSWORD:-trader} = the server's password, or "trader" on your laptop
+  restart: unless-stopped                  # if a program crashes, Docker starts it again
+
 services:
   postgres:                                # permanent records: orders, fills, deposits, daily balances
     image: postgres:17                     # pinned: pick the same major version on AWS RDS later
     environment:
-      POSTGRES_USER: trader                # local-only login; on AWS this comes from Secrets Manager
-      POSTGRES_PASSWORD: trader
+      POSTGRES_USER: trader
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-trader}   # set in the server's .env; "trader" on your laptop
       POSTGRES_DB: trading                 # the database created on first start
     ports:
-      - "5432:5432"                        # reachable from Windows as localhost:5432
+      - "5432:5432"                        # reachable from Windows as localhost:5432 (handy for DB tools and tests)
     volumes:
       - pgdata:/var/lib/postgresql/data    # keeps the data when the container is stopped or recreated
     healthcheck:                           # "healthy" once Postgres accepts connections
@@ -20,7 +33,46 @@ services:
   redis:                                   # live prices and live order updates
     image: redis:7
     ports:
-      - "6379:6379"
+      - "6379:6379"                        # reachable from Windows as localhost:6379 (handy for tests)
+    healthcheck:                           # "healthy" once Redis answers PING
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  setup:                                   # runs once each start: create/update the tables, add the starting rows
+    <<: *backend
+    command: sh -c "alembic upgrade head && python seed.py"
+    restart: "no"                          # a one-off job: run, finish, stop (both steps are safe to repeat)
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:                                     # FastAPI: the REST endpoints and the browser WebSockets
+    <<: *backend                           # no command given, so it uses the Dockerfile's default (uvicorn)
+    ports:
+      - "8000:8000"                        # the React app talks to localhost:8000, same as before
+    depends_on:
+      setup:
+        condition: service_completed_successfully   # don't start until the tables exist
+      redis:
+        condition: service_healthy
+
+  stream_prices:                           # Alpaca -> Redis (only ONE of these may run: Alpaca allows one connection)
+    <<: *backend
+    command: python stream_prices.py
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  match_orders:                            # fills limit orders when the live price reaches them
+    <<: *backend
+    command: python match_orders.py
+    depends_on:
+      setup:
+        condition: service_completed_successfully   # it reads the instruments table at startup
+      redis:
+        condition: service_healthy
 
 volumes:
   pgdata:                                  # a Docker-managed folder for Postgres's files

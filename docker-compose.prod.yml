@@ -1,0 +1,43 @@
+# Server-only changes, layered on top of docker-compose.yml. On the server, start everything with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# It reads its settings from a .env file next to this one (copy .env.prod.example; never commit it).
+
+services:
+  caddy:                                   # the only thing reachable from the internet
+    build:
+      context: ./frontend                  # frontend/Dockerfile: build React, serve it with Caddy
+      args:
+        VITE_API_URL: https://${DOMAIN:?set DOMAIN in .env}/api   # baked into the JavaScript at build time
+    image: trading-web
+    pull_policy: build                     # always build it here; never look for it on Docker Hub
+    environment:                           # used by the Caddyfile
+      DOMAIN: ${DOMAIN}
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:?set BASIC_AUTH_USER in .env}
+      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH:?set BASIC_AUTH_HASH in .env}
+    ports:
+      - "80:80"                            # plain HTTP: Caddy redirects it to HTTPS
+      - "443:443"                          # HTTPS
+      - "443:443/udp"                      # HTTP/3 (faster HTTPS on good browsers)
+    volumes:
+      - caddy_data:/data                   # keeps the HTTPS certificate between restarts
+      - caddy_config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # On the server nothing else should be reachable from outside: only Caddy talks to the internet.
+  # (!reset [] removes the ports the laptop version opens.)
+  api:
+    ports: !reset []
+  postgres:
+    ports: !reset []
+    restart: unless-stopped                # come back after a server reboot
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}   # no "trader" default here
+  redis:
+    ports: !reset []
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

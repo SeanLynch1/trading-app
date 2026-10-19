@@ -1,0 +1,7 @@
+# Files Docker should NOT copy into the image (the build installs and builds its own).
+node_modules/
+dist/
+.env
+.env.*
+Dockerfile
+.dockerignore
