@@ -1,0 +1,26 @@
+# Caddy's settings on the server. {$NAME} = a value from the server's .env (via docker-compose.prod.yml).
+
+{$DOMAIN} {
+	# Caddy sees the domain name and gets (and renews) a free HTTPS certificate for it automatically.
+
+	encode gzip
+
+	# A password on the whole site, until the app has real logins (current_user() is always user 1).
+	basic_auth {
+		{$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+	}
+
+	# /api/... goes to FastAPI, with "/api" removed: /api/portfolio -> /portfolio, /api/ws/trades/BTC -> /ws/trades/BTC.
+	# WebSockets pass straight through too.
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+
+	# Everything else is the React app. Unknown paths (like /portfolio when you refresh the page)
+	# get index.html, so React Router can show the right page.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
